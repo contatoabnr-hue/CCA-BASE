@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { collection, onSnapshot } from 'firebase/firestore';
+import { collection, onSnapshot, setDoc, deleteDoc, doc } from 'firebase/firestore';
 import { db } from './firebase-config';
 import { Story, ViewMode, NewsPost, City } from './types';
 import { LibraryView } from './views/LibraryView';
@@ -49,6 +49,7 @@ export default function App() {
 
   const [news, setNews] = useState<NewsPost[]>(INITIAL_NEWS);
   const [cities, setCities] = useState<City[]>(INITIAL_CITIES);
+  const [stories, setStories] = useState<Story[]>([]);
   const [activeStoryId, setActiveStoryId] = useState<string | null>(null);
   
   // Auth State
@@ -60,25 +61,46 @@ export default function App() {
   // Notification State
   const [notification, setNotification] = useState<string | null>(null);
 
-  // Load data from local storage on mount
+  // Load data from Firestore on mount with real-time listener
   useEffect(() => {
+    // Load Stories
+    const unsubscribeStories = onSnapshot(collection(db, 'Leitura'), (snapshot) => {
+      const fetchedStories: Story[] = [];
+      snapshot.forEach((doc) => {
+        fetchedStories.push({ id: doc.id, ...doc.data() as Omit<Story, 'id'> });
+      });
+      setStories(fetchedStories);
+    });
 
+    // Load News
+    const unsubscribeNews = onSnapshot(collection(db, 'Noticias'), (snapshot) => {
+      const newsData: NewsPost[] = [];
+      snapshot.forEach((doc) => {
+        newsData.push({ id: doc.id, ...doc.data() as Omit<NewsPost, 'id'> });
+      });
+      setNews(newsData);
+    });
 
-    const savedNews = localStorage.getItem('ink_scroll_news');
-    if (savedNews) try { setNews(JSON.parse(savedNews)); } catch(e) {}
+    // Load Cities
+    const unsubscribeCities = onSnapshot(collection(db, 'Cidades'), (snapshot) => {
+      const citiesData: City[] = [];
+      snapshot.forEach((doc) => {
+        citiesData.push({ id: doc.id, ...doc.data() as Omit<City, 'id'> });
+      });
+      setCities(citiesData);
+    });
 
-    const savedCities = localStorage.getItem('ink_scroll_cities');
-    if (savedCities) try { setCities(JSON.parse(savedCities)); } catch(e) {}
-    
-    // Check session
+    // Check session from localStorage
     const savedUser = localStorage.getItem('ink_scroll_user');
     if (savedUser) setCurrentUser(savedUser);
+
+    // Cleanup subscriptions
+    return () => {
+      unsubscribeStories();
+      unsubscribeNews();
+      unsubscribeCities();
+    };
   }, []);
-
-  // Save data whenever changes
-
-  useEffect(() => localStorage.setItem('ink_scroll_news', JSON.stringify(news)), [news]);
-  useEffect(() => localStorage.setItem('ink_scroll_cities', JSON.stringify(cities)), [cities]);
 
   // Scroll to top whenever view changes
   useEffect(() => {
@@ -116,31 +138,51 @@ export default function App() {
 
 
   // News Handlers
-  const handleSaveNews = (post: NewsPost) => {
-    setNews(prev => {
-      const exists = prev.find(p => p.id === post.id);
-      if (exists) return prev.map(p => p.id === post.id ? post : p);
-      return [post, ...prev]; // Newest first
-    });
-    showToast("Notícia publicada!");
+  const handleSaveNews = async (post: NewsPost) => {
+    try {
+      const newsId = post.id;
+      await setDoc(doc(db, 'Noticias', newsId), post);
+      showToast("Notícia publicada!");
+    } catch (err) {
+      console.error("Error saving news:", err);
+      showToast("Erro ao publicar notícia!");
+    }
   };
 
-  const handleDeleteNews = (id: string) => {
-    if(window.confirm("Excluir esta notícia?")) setNews(prev => prev.filter(p => p.id !== id));
+  const handleDeleteNews = async (id: string) => {
+    if(window.confirm("Excluir esta notícia?")) {
+      try {
+        await deleteDoc(doc(db, 'Noticias', id));
+        showToast("Notícia removida!");
+      } catch (err) {
+        console.error("Error deleting news:", err);
+        showToast("Erro ao remover notícia!");
+      }
+    }
   };
 
   // City Handlers
-  const handleSaveCity = (city: City) => {
-    setCities(prev => {
-      const exists = prev.find(c => c.id === city.id);
-      if (exists) return prev.map(c => c.id === city.id ? city : c);
-      return [...prev, city];
-    });
-    showToast("Cidade atualizada no catálogo!");
+  const handleSaveCity = async (city: City) => {
+    try {
+      const cityId = city.id;
+      await setDoc(doc(db, 'Cidades', cityId), city);
+      showToast("Cidade atualizada no catálogo!");
+    } catch (err) {
+      console.error("Error saving city:", err);
+      showToast("Erro ao atualizar cidade!");
+    }
   };
 
-  const handleDeleteCity = (id: string) => {
-    if(window.confirm("Remover esta cidade do catálogo?")) setCities(prev => prev.filter(c => c.id !== id));
+  const handleDeleteCity = async (id: string) => {
+    if(window.confirm("Remover esta cidade do catálogo?")) {
+      try {
+        await deleteDoc(doc(db, 'Cidades', id));
+        showToast("Cidade removida do catálogo!");
+      } catch (err) {
+        console.error("Error deleting city:", err);
+        showToast("Erro ao remover cidade!");
+      }
+    }
   };
 
   const handleOpenReader = (id: string) => {
@@ -165,6 +207,7 @@ export default function App() {
       case 'library':
         return (
           <LibraryView 
+            stories={stories}
             onRead={handleOpenReader}
             currentUser={currentUser}
             onLogin={() => setShowLoginModal(true)}
@@ -176,6 +219,7 @@ export default function App() {
       case 'archive':
         return (
           <ArchiveView 
+            stories={stories}
             onRead={handleOpenReader}
             onBack={() => setView('library')}
           />
@@ -299,7 +343,7 @@ export default function App() {
                 onClick={() => setView('library')}
                 className={`text-sm font-medium px-3 py-2 rounded-md transition-colors ${['library', 'reader', 'archive'].includes(view) ? 'text-magic bg-white/5' : 'text-primary/70 hover:text-magic'}`}
               >
-                Leitura
+                Histórias
               </button>
               <button 
                 onClick={() => setView('news')}
@@ -311,7 +355,7 @@ export default function App() {
                 onClick={() => setView('world')}
                 className={`text-sm font-medium px-3 py-2 rounded-md transition-colors ${view === 'world' ? 'text-magic bg-white/5' : 'text-primary/70 hover:text-magic'}`}
               >
-                O Mundo
+                Cidades
               </button>
               <button 
                 onClick={handleNavigateToOrganizations}
