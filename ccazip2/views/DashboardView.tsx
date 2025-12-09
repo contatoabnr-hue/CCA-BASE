@@ -1,9 +1,7 @@
-import React, { useEffect, useState } from 'react';
-import { Story } from '../types';
+import React from 'react';
 import { Button } from '../components/Button';
-import { Plus, Edit3, Trash2, Eye } from 'lucide-react';
-import { db } from '../firebase-config';
-import { collection, onSnapshot, query, orderBy, deleteDoc, doc } from 'firebase/firestore';
+import { Plus, Edit3, Trash2 } from 'lucide-react';
+import { useStoryStore } from '../stores/storyStore';
 
 interface DashboardViewProps {
   onCreate: () => void;
@@ -11,57 +9,12 @@ interface DashboardViewProps {
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({ onCreate, onEdit }) => {
-  const [stories, setStories] = useState<Story[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { stories, deleteStory } = useStoryStore();
 
-  useEffect(() => {
-    setLoading(true);
-    const q = query(collection(db, 'Leitura'), orderBy('createdAt', 'desc'));
+  // The store handles loading and error states globally, so this view can be simpler.
+  // We sort stories here for presentation purposes.
+  const sortedStories = [...stories].sort((a, b) => b.createdAt - a.createdAt);
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const fetchedStories: Story[] = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data() as Omit<Story, 'id'>
-      }));
-      setStories(fetchedStories);
-      setLoading(false);
-    }, (err) => {
-      console.error("Error fetching stories for dashboard:", err);
-      setError("Falha ao carregar as histórias. Tente novamente mais tarde.");
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  const handleDeleteStory = async (id: string) => {
-    if (window.confirm("Tem certeza que deseja excluir esta história permanentemente?")) {
-      try {
-        await deleteDoc(doc(db, 'Leitura', id));
-        // stories state will be updated automatically by onSnapshot
-      } catch (err) {
-        console.error("Error deleting story:", err);
-        setError("Falha ao excluir a história. Tente novamente.");
-      }
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-dark text-primary">
-        <p className="text-xl font-serif">Carregando painel...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-dark text-red-400">
-        <p className="text-xl font-serif">{error}</p>
-      </div>
-    );
-  }
   return (
     <div className="max-w-6xl mx-auto px-4 py-10">
       <div className="flex justify-between items-center mb-10">
@@ -85,7 +38,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onCreate, onEdit }
             </tr>
           </thead>
           <tbody className="divide-y divide-primary/5">
-            {stories.map(story => (
+            {sortedStories.map(story => (
               <tr key={story.id} className="hover:bg-white/5 transition-colors group">
                 <td className="p-4">
                   <div className="font-bold text-primary group-hover:text-magic transition-colors">{story.title}</div>
@@ -113,7 +66,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onCreate, onEdit }
                       <Edit3 className="w-4 h-4" />
                     </button>
                     <button 
-                      onClick={() => onDelete(story.id)}
+                      onClick={() => deleteStory(story.id)}
                       className="p-2 hover:bg-red-900/20 text-red-400 rounded-md transition-colors"
                       title="Excluir"
                     >

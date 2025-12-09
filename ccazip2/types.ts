@@ -43,4 +43,4 @@ export interface City {
   image: string;
 }
 
-export type ViewMode = 'library' | 'reader' | 'editor' | 'dashboard' | 'archive' | 'news' | 'world';
+

@@ -1,60 +1,39 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Story } from '../types';
 import { FadeImage } from '../components/FadeImage';
 import { ArrowLeft } from 'lucide-react';
-import { db } from '../firebase-config';
-import { doc, getDoc } from 'firebase/firestore';
+import { useStoryStore } from '../stores/storyStore';
+import { useUIStore } from '../stores/uiStore';
 
-interface ReaderViewProps {
-  activeStoryId: string | null;
-  onBack: () => void;
-}
+export const ReaderView: React.FC = () => {
+  // Get state from stores
+  const { activeStory: story, loadingStory: loading, error, activeStoryId } = useStoryStore();
+  const setView = useUIStore(state => state.setView);
+  const setActiveStoryId = useStoryStore(state => state.setActiveStoryId);
 
-export const ReaderView: React.FC<ReaderViewProps> = ({ activeStoryId, onBack }) => {
-  const [story, setStory] = useState<Story | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [scrollY, setScrollY] = useState(0);
   const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!activeStoryId) {
-      setError("Nenhuma história selecionada.");
-      setLoading(false);
-      return;
-    }
-
-    const fetchStory = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const docRef = doc(db, 'Leitura', activeStoryId);
-        const docSnap = await getDoc(docRef);
-
-        if (docSnap.exists()) {
-          setStory({ id: docSnap.id, ...docSnap.data() as Omit<Story, 'id'> });
-        } else {
-          setError("História não encontrada.");
-        }
-      } catch (err) {
-        console.error("Error fetching story:", err);
-        setError("Falha ao carregar a história. Tente novamente mais tarde.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchStory();
-  }, [activeStoryId]);
-
-  useEffect(() => {
+    // Reset scroll when component mounts or story changes
+    window.scrollTo(0, 0);
+    
     const handleScroll = () => {
       setScrollY(window.scrollY);
     };
     window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+    
+    // Clean up story selection on unmount
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      // Optional: if you want the story to clear when leaving the reader
+      // setActiveStoryId(null); 
+    };
+  }, [activeStoryId]);
 
+  const handleBack = () => {
+    setView('library');
+  };
+  
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-dark text-primary">
@@ -67,7 +46,7 @@ export const ReaderView: React.FC<ReaderViewProps> = ({ activeStoryId, onBack })
     return (
       <div className="min-h-screen flex items-center justify-center bg-dark text-red-400">
         <p className="text-xl font-serif">{error}</p>
-        <button onClick={onBack} className="ml-4 px-4 py-2 bg-magic/20 text-magic rounded hover:bg-magic/30 transition-colors">Voltar</button>
+        <button onClick={handleBack} className="ml-4 px-4 py-2 bg-magic/20 text-magic rounded hover:bg-magic/30 transition-colors">Voltar</button>
       </div>
     );
   }
@@ -76,7 +55,7 @@ export const ReaderView: React.FC<ReaderViewProps> = ({ activeStoryId, onBack })
     return (
       <div className="min-h-screen flex items-center justify-center bg-dark text-primary">
         <p className="text-xl font-serif">Selecione uma história para ler.</p>
-        <button onClick={onBack} className="ml-4 px-4 py-2 bg-magic/20 text-magic rounded hover:bg-magic/30 transition-colors">Voltar</button>
+        <button onClick={handleBack} className="ml-4 px-4 py-2 bg-magic/20 text-magic rounded hover:bg-magic/30 transition-colors">Voltar</button>
       </div>
     );
   }
@@ -98,7 +77,7 @@ export const ReaderView: React.FC<ReaderViewProps> = ({ activeStoryId, onBack })
       
       {/* Floating Back Button */}
       <button 
-        onClick={onBack}
+        onClick={handleBack}
         className="fixed top-20 left-4 z-50 p-3 rounded-full bg-surface/80 shadow-lg hover:text-magic hover:border-magic border border-primary/10 transition-all text-primary backdrop-blur-sm"
       >
         <ArrowLeft className="w-5 h-5" />

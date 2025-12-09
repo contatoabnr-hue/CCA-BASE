@@ -2,19 +2,20 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Story, ViewMode } from '../types';
 import { Button } from '../components/Button';
-import { BookOpen, Newspaper, Globe, Users, MessageCircle, PenTool, LogIn, User, Camera, Edit3, ArrowRight, X, Save, Upload, Image as ImageIcon, MapPin } from 'lucide-react';
+import { BookOpen, Newspaper, Globe, Users, MessageCircle, PenTool, LogIn, User as UserIcon, Camera, Edit3, ArrowRight, X, Save, Upload, Image as ImageIcon, MapPin } from 'lucide-react';
 import { DEFAULT_COVER } from '../constants';
 import { db } from '../firebase-config';
 import { collection, doc, onSnapshot, setDoc, query, where } from 'firebase/firestore';
 
+// Import stores
+import { useAuthStore } from '../stores/authStore';
+import { useStoryStore } from '../stores/storyStore';
+import { useUIStore } from '../stores/uiStore';
+
+import { User } from 'firebase/auth';
+
 interface LibraryViewProps {
-  // stories prop is no longer needed as we'll fetch from Firebase
   onRead: (id: string) => void;
-  currentUser: string | null;
-  onLogin: () => void;
-  onEnterDashboard: () => void;
-  onViewAll: () => void;
-  onChangeView: (view: ViewMode) => void;
 }
 
 // Updated Hero Background to match "Fogo & Fortuna" - Fantasy Adventurers Group
@@ -39,9 +40,13 @@ const DEFAULT_GUILD_DESCS: Record<number, string> = {
   5: "Espiões, diplomatas e artistas. Eles ouvem tudo, veem tudo e registram a verdadeira história nas entrelinhas de suas canções."
 };
 
-export const LibraryView: React.FC<Omit<LibraryViewProps, 'stories'>> = ({ onRead, currentUser, onLogin, onEnterDashboard, onViewAll, onChangeView }) => {
+export const LibraryView: React.FC<LibraryViewProps> = ({ onRead }) => {
+  // Get state from stores
+  const stories = useStoryStore(state => state.stories);
+  const currentUser = useAuthStore(state => state.currentUser);
+  const setView = useUIStore(state => state.setView);
+  
   const [scrollY, setScrollY] = useState(0);
-  const [stories, setStories] = useState<Story[]>([]);
   
   // Customizable Images State
   const [heroBg, setHeroBg] = useState(DEFAULT_HERO_BG);
@@ -83,20 +88,6 @@ export const LibraryView: React.FC<Omit<LibraryViewProps, 'stories'>> = ({ onRea
     const handleScroll = () => setScrollY(window.scrollY);
     window.addEventListener('scroll', handleScroll, { passive: true });
     
-    // --- FIREBASE LISTENERS ---
-
-    // 1. Listen for stories from "Leitura" collection
-    const storiesUnsubscribe = onSnapshot(
-      query(collection(db, "Leitura"), where("isPublished", "==", true)),
-      (querySnapshot) => {
-        const storiesData = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        } as Story));
-        setStories(storiesData);
-      }
-    );
-
     // 2. Listen for page configuration from "pages/library_view_config"
     const configUnsubscribe = onSnapshot(doc(db, "pages", "library_view_config"), (docSnapshot) => {
       if (docSnapshot.exists()) {
@@ -114,7 +105,6 @@ export const LibraryView: React.FC<Omit<LibraryViewProps, 'stories'>> = ({ onRea
 
     return () => {
       window.removeEventListener('scroll', handleScroll);
-      storiesUnsubscribe();
       configUnsubscribe();
     };
   }, []);
@@ -486,7 +476,7 @@ export const LibraryView: React.FC<Omit<LibraryViewProps, 'stories'>> = ({ onRea
 
             <div className="relative">
                 <div 
-                  onClick={onViewAll}
+                  onClick={() => setView('archive')}
                   className="w-full h-16 flex items-center justify-center bg-gradient-to-r from-transparent via-primary/5 to-transparent hover:via-magic/10 border-y border-primary/5 hover:border-magic/20 cursor-pointer transition-all duration-500 group backdrop-blur-sm"
                 >
                     <span className="text-primary/60 font-serif tracking-widest uppercase text-sm group-hover:text-magic transition-colors flex items-center gap-2">

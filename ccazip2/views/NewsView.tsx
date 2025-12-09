@@ -1,19 +1,20 @@
-
 import React, { useState, useRef } from 'react';
 import { NewsPost } from '../types';
 import { Button } from '../components/Button';
-import { ArrowLeft, Plus, X, Upload, Save, Trash2, Calendar, User, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, Plus, X, Upload, Save, Trash2, Calendar, User as UserIcon, ChevronDown, ChevronUp } from 'lucide-react';
 import { DEFAULT_COVER } from '../constants';
 
-interface NewsViewProps {
-  news: NewsPost[];
-  onBack: () => void;
-  currentUser: string | null;
-  onSave: (post: NewsPost) => void;
-  onDelete: (id: string) => void;
-}
+// Import stores
+import { useContentStore } from '../stores/contentStore';
+import { useAuthStore } from '../stores/authStore';
+import { useUIStore } from '../stores/uiStore';
 
-export const NewsView: React.FC<NewsViewProps> = ({ news, onBack, currentUser, onSave, onDelete }) => {
+export const NewsView: React.FC = () => {
+  // Get state and actions from stores
+  const { news, saveNews, deleteNews } = useContentStore();
+  const currentUser = useAuthStore(state => state.currentUser);
+  const setView = useUIStore(state => state.setView);
+
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [expandedNewsId, setExpandedNewsId] = useState<string | null>(null);
   
@@ -42,7 +43,7 @@ export const NewsView: React.FC<NewsViewProps> = ({ news, onBack, currentUser, o
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!editTitle.trim()) return alert("O título é obrigatório.");
     
     const newPost: NewsPost = {
@@ -51,10 +52,10 @@ export const NewsView: React.FC<NewsViewProps> = ({ news, onBack, currentUser, o
       bannerImage: editBanner,
       content: editContent,
       date: Date.now(),
-      author: currentUser || 'Admin'
+      author: currentUser?.email || 'Admin'
     };
     
-    onSave(newPost);
+    await saveNews(newPost);
     setIsEditorOpen(false);
   };
 
@@ -69,7 +70,7 @@ export const NewsView: React.FC<NewsViewProps> = ({ news, onBack, currentUser, o
         {/* Header */}
         <div className="flex items-center justify-between mb-8 pb-4 border-b border-primary/10">
           <button 
-            onClick={onBack}
+            onClick={() => setView('library')}
             className="flex items-center text-primary/60 hover:text-magic transition-colors"
           >
             <ArrowLeft className="w-5 h-5 mr-2" />
@@ -132,11 +133,11 @@ export const NewsView: React.FC<NewsViewProps> = ({ news, onBack, currentUser, o
                     />
                     
                     <div className="mt-6 pt-4 border-t border-primary/10 flex justify-between items-center text-sm text-primary/40">
-                       <span className="flex items-center gap-2"><User className="w-4 h-4"/> Publicado por {item.author}</span>
+                       <span className="flex items-center gap-2"><UserIcon className="w-4 h-4"/> Publicado por {item.author}</span>
                        
                        {currentUser && (
                          <button 
-                            onClick={() => onDelete(item.id)}
+                            onClick={() => deleteNews(item.id)}
                             className="text-red-400 hover:text-red-300 flex items-center gap-1 px-3 py-1 hover:bg-red-900/20 rounded"
                          >
                             <Trash2 className="w-4 h-4" /> Remover

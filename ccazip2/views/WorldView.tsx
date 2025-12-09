@@ -1,19 +1,20 @@
-
 import React, { useState, useRef } from 'react';
 import { City } from '../types';
 import { Button } from '../components/Button';
 import { ArrowLeft, Plus, X, MapPin, Upload, Save, Trash2, Globe, Edit3 } from 'lucide-react';
 import { DEFAULT_COVER } from '../constants';
 
-interface WorldViewProps {
-  cities: City[];
-  onBack: () => void;
-  currentUser: string | null;
-  onSave: (city: City) => void;
-  onDelete: (id: string) => void;
-}
+// Import stores
+import { useContentStore } from '../stores/contentStore';
+import { useAuthStore } from '../stores/authStore';
+import { useUIStore } from '../stores/uiStore';
 
-export const WorldView: React.FC<WorldViewProps> = ({ cities, onBack, currentUser, onSave, onDelete }) => {
+export const WorldView: React.FC = () => {
+  // Get state and actions from stores
+  const { cities, saveCity, deleteCity } = useContentStore();
+  const currentUser = useAuthStore(state => state.currentUser);
+  const setView = useUIStore(state => state.setView);
+  
   const [selectedCity, setSelectedCity] = useState<City | null>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editingCityId, setEditingCityId] = useState<string | null>(null);
@@ -52,7 +53,7 @@ export const WorldView: React.FC<WorldViewProps> = ({ cities, onBack, currentUse
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!editName.trim()) return alert("O nome da cidade é obrigatório.");
     
     const newCity: City = {
@@ -62,13 +63,18 @@ export const WorldView: React.FC<WorldViewProps> = ({ cities, onBack, currentUse
       description: editDesc
     };
     
-    onSave(newCity);
+    await saveCity(newCity);
     setIsEditorOpen(false);
     
     // If we were viewing the detailed modal for this city, update the selection instantly
     if (selectedCity && selectedCity.id === newCity.id) {
         setSelectedCity(newCity);
     }
+  };
+
+  const handleDelete = (id: string) => {
+    deleteCity(id);
+    setSelectedCity(null);
   };
 
   return (
@@ -78,7 +84,7 @@ export const WorldView: React.FC<WorldViewProps> = ({ cities, onBack, currentUse
         {/* Header */}
         <div className="flex items-center justify-between mb-12 pb-6 border-b border-primary/10">
           <button 
-            onClick={onBack}
+            onClick={() => setView('library')}
             className="flex items-center text-primary/60 hover:text-magic transition-colors"
           >
             <ArrowLeft className="w-5 h-5 mr-2" />
@@ -185,7 +191,7 @@ export const WorldView: React.FC<WorldViewProps> = ({ cities, onBack, currentUse
                                 <Edit3 className="w-4 h-4" /> Editar
                             </button>
                             <button 
-                                onClick={() => { onDelete(selectedCity.id); setSelectedCity(null); }}
+                                onClick={() => handleDelete(selectedCity.id)}
                                 className="text-red-400 hover:text-red-300 text-sm flex items-center gap-2 hover:bg-red-900/10 px-3 py-1 rounded transition-colors border border-red-900/30"
                             >
                                 <Trash2 className="w-4 h-4" /> Apagar
