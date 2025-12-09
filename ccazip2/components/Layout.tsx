@@ -26,11 +26,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     window.scrollTo(0, 0);
   }, [navigate]);
 
-  if (!currentUser) {
-    // This should ideally not be reached if routes are properly protected,
-    // but acts as a fallback. The parent App.tsx should handle redirection.
-    return null; 
-  }
+
 
   return (
     <div className="min-h-screen bg-dark text-primary font-sans relative overflow-x-hidden">
@@ -89,7 +85,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             <div className="flex items-center gap-4">
               {currentUser ? (
                 <>
-                  <button 
+                  <button
                     onClick={() => navigate('/dashboard')}
                     className={`flex items-center text-sm font-medium px-3 py-2 rounded-md transition-colors ${window.location.pathname === '/dashboard' || window.location.pathname.includes('/editor') ? 'text-magic bg-white/5' : 'text-primary/70 hover:text-magic'}`}
                   >
@@ -98,7 +94,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   </button>
                   <div className="h-4 w-px bg-primary/20 mx-1"></div>
                   <div className="text-xs text-primary/40 mr-2 hidden md:block">{currentUser.email}</div>
-                  <button 
+                  <button
                     onClick={logout}
                     className="text-xs text-red-400 hover:text-red-300 flex items-center px-2 py-1 hover:bg-900/10 rounded"
                   >
@@ -106,7 +102,12 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   </button>
                 </>
               ) : (
-                <></>
+                <button
+                  onClick={() => navigate('/login')}
+                  className="text-sm font-medium px-3 py-2 rounded-md transition-colors text-primary/70 hover:text-magic"
+                >
+                  Entrar
+                </button>
               )}
             </div>
           </div>

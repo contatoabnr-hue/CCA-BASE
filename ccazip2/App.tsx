@@ -32,6 +32,11 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <Layout>{children}</Layout>;
 };
 
+// A component to apply the Layout to public routes without protection
+const PublicRouteLayout = ({ children }: { children: React.ReactNode }) => {
+  return <Layout>{children}</Layout>;
+};
+
 export default function App() {
   const navigate = useNavigate();
 
@@ -80,12 +85,25 @@ export default function App() {
   return (
     <Routes>
       {/* Public Routes */}
-      <Route path="/login" element={<LoginView />} />
+      <Route path="/login" element={<LoginView />} /> {/* Login view does not need the layout */}
       <Route path="/" element={<Navigate to="/library" replace />} />
-      <Route path="/library" element={<LibraryView onRead={handleOpenReader} />} />
-      <Route path="/story/:storyId" element={<ReaderView onBack={() => navigate('/library')} />} />
-      <Route path="/news" element={<NewsView onBack={() => navigate('/library')} />} />
-      <Route path="/world" element={<WorldView onBack={() => navigate('/library')} />} />
+      {/* Public Routes with Layout */}
+      <Route
+        path="/library"
+        element={<PublicRouteLayout><LibraryView onRead={handleOpenReader} /></PublicRouteLayout>}
+      />
+      <Route
+        path="/story/:storyId"
+        element={<PublicRouteLayout><ReaderView onBack={() => navigate('/library')} /></PublicRouteLayout>}
+      />
+      <Route
+        path="/news"
+        element={<PublicRouteLayout><NewsView onBack={() => navigate('/library')} /></PublicRouteLayout>}
+      />
+      <Route
+        path="/world"
+        element={<PublicRouteLayout><WorldView onBack={() => navigate('/library')} /></PublicRouteLayout>}
+      />
 
       {/* Protected Routes */}
       <Route
